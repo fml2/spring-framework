@@ -38,11 +38,13 @@ import jakarta.persistence.PersistenceContextType;
 import jakarta.persistence.PersistenceProperty;
 import jakarta.persistence.PersistenceUnit;
 import jakarta.persistence.SynchronizationType;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.aot.generate.GeneratedClass;
 import org.springframework.aot.generate.GeneratedMethod;
 import org.springframework.aot.generate.GeneratedMethods;
 import org.springframework.aot.generate.GenerationContext;
+import org.springframework.aot.generate.MethodReference.ArgumentCodeGenerator;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.PropertyValues;
@@ -72,7 +74,6 @@ import org.springframework.javapoet.CodeBlock;
 import org.springframework.javapoet.MethodSpec;
 import org.springframework.jndi.JndiLocatorDelegate;
 import org.springframework.jndi.JndiTemplate;
-import org.springframework.lang.Nullable;
 import org.springframework.orm.jpa.EntityManagerFactoryInfo;
 import org.springframework.orm.jpa.EntityManagerFactoryUtils;
 import org.springframework.orm.jpa.EntityManagerProxy;
@@ -112,7 +113,7 @@ import org.springframework.util.StringUtils;
  * with the bean name used as fallback unit name if no deployed name found.
  * Typically, Spring's {@link org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean}
  * will be used for setting up such EntityManagerFactory beans. Alternatively,
- * such beans may also be obtained from JNDI, e.g. using the {@code jee:jndi-lookup}
+ * such beans may also be obtained from JNDI, for example, using the {@code jee:jndi-lookup}
  * XML configuration element (with the bean name matching the requested unit name).
  * In both cases, the post-processor definition will look as simple as this:
  *
@@ -190,26 +191,21 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 		DestructionAwareBeanPostProcessor, MergedBeanDefinitionPostProcessor, BeanRegistrationAotProcessor,
 		PriorityOrdered, BeanFactoryAware, Serializable {
 
-	@Nullable
-	private Object jndiEnvironment;
+	private @Nullable Object jndiEnvironment;
 
 	private boolean resourceRef = true;
 
-	@Nullable
-	private transient Map<String, String> persistenceUnits;
+	private transient @Nullable Map<String, String> persistenceUnits;
 
-	@Nullable
-	private transient Map<String, String> persistenceContexts;
+	private transient @Nullable Map<String, String> persistenceContexts;
 
-	@Nullable
-	private transient Map<String, String> extendedPersistenceContexts;
+	private transient @Nullable Map<String, String> extendedPersistenceContexts;
 
 	private transient String defaultPersistenceUnitName = "";
 
 	private int order = Ordered.LOWEST_PRECEDENCE - 4;
 
-	@Nullable
-	private transient ListableBeanFactory beanFactory;
+	private transient @Nullable ListableBeanFactory beanFactory;
 
 	private final transient Map<String, InjectionMetadata> injectionMetadataCache = new ConcurrentHashMap<>(256);
 
@@ -353,12 +349,18 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 	}
 
 	@Override
-	public BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean) {
+	public void resetBeanDefinition(String beanName) {
+		this.injectionMetadataCache.remove(beanName);
+	}
+
+	@Override
+	public @Nullable BeanRegistrationAotContribution processAheadOfTime(RegisteredBean registeredBean) {
 		Class<?> beanClass = registeredBean.getBeanClass();
 		String beanName = registeredBean.getBeanName();
 		RootBeanDefinition beanDefinition = registeredBean.getMergedBeanDefinition();
 		InjectionMetadata metadata = findInjectionMetadata(beanDefinition, beanClass, beanName);
-		Collection<InjectedElement> injectedElements = metadata.getInjectedElements();
+		Collection<InjectedElement> injectedElements = metadata.getInjectedElements(
+				beanDefinition.getPropertyValues());
 		if (!CollectionUtils.isEmpty(injectedElements)) {
 			return new AotContribution(beanClass, injectedElements);
 		}
@@ -369,11 +371,6 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 		InjectionMetadata metadata = findPersistenceMetadata(beanName, beanType, null);
 		metadata.checkConfigMembers(beanDefinition);
 		return metadata;
-	}
-
-	@Override
-	public void resetBeanDefinition(String beanName) {
-		this.injectionMetadataCache.remove(beanName);
 	}
 
 	@Override
@@ -476,8 +473,7 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 	 * or {@code null} if none found
 	 * @see #setPersistenceUnits
 	 */
-	@Nullable
-	protected EntityManagerFactory getPersistenceUnit(@Nullable String unitName) {
+	protected @Nullable EntityManagerFactory getPersistenceUnit(@Nullable String unitName) {
 		if (this.persistenceUnits != null) {
 			String unitNameForLookup = (unitName != null ? unitName : "");
 			if (unitNameForLookup.isEmpty()) {
@@ -508,8 +504,7 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 	 * @see #setPersistenceContexts
 	 * @see #setExtendedPersistenceContexts
 	 */
-	@Nullable
-	protected EntityManager getPersistenceContext(@Nullable String unitName, boolean extended) {
+	protected @Nullable EntityManager getPersistenceContext(@Nullable String unitName, boolean extended) {
 		Map<String, String> contexts = (extended ? this.extendedPersistenceContexts : this.persistenceContexts);
 		if (contexts != null) {
 			String unitNameForLookup = (unitName != null ? unitName : "");
@@ -645,13 +640,11 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 
 		private final String unitName;
 
-		@Nullable
-		private PersistenceContextType type;
+		private @Nullable PersistenceContextType type;
 
 		private boolean synchronizedWithTransaction = false;
 
-		@Nullable
-		private Properties properties;
+		private @Nullable Properties properties;
 
 		public PersistenceElement(Member member, AnnotatedElement ae, @Nullable PropertyDescriptor pd) {
 			super(member, pd);
@@ -769,11 +762,11 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 
 		private final Class<?> target;
 
-		private final Collection<InjectedElement> injectedElements;
+		private final List<InjectedElement> injectedElements;
 
 		AotContribution(Class<?> target, Collection<InjectedElement> injectedElements) {
 			this.target = target;
-			this.injectedElements = injectedElements;
+			this.injectedElements = List.copyOf(injectedElements);
 		}
 
 		@Override
@@ -797,16 +790,44 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 
 		private CodeBlock generateMethodCode(RuntimeHints hints, GeneratedClass generatedClass) {
 			CodeBlock.Builder code = CodeBlock.builder();
-			InjectionCodeGenerator injectionCodeGenerator =
-					new InjectionCodeGenerator(generatedClass.getName(), hints);
-			for (InjectedElement injectedElement : this.injectedElements) {
-				CodeBlock resourceToInject = generateResourceToInjectCode(generatedClass.getMethods(),
-						(PersistenceElement) injectedElement);
-				code.add(injectionCodeGenerator.generateInjectionCode(
-						injectedElement.getMember(), INSTANCE_PARAMETER,
-						resourceToInject));
+			if (this.injectedElements.size() == 1) {
+				code.add(generateInjectedElementMethodCode(hints, generatedClass, this.injectedElements.get(0)));
+			}
+			else {
+				for (InjectedElement injectedElement : this.injectedElements) {
+					code.addStatement(applyInjectedElement(hints, generatedClass, injectedElement));
+				}
 			}
 			code.addStatement("return $L", INSTANCE_PARAMETER);
+			return code.build();
+		}
+
+		private CodeBlock applyInjectedElement(RuntimeHints hints, GeneratedClass generatedClass, InjectedElement injectedElement) {
+			String injectedElementName = injectedElement.getMember().getName();
+			GeneratedMethod generatedMethod = generatedClass.getMethods().add(new String[] { "apply", injectedElementName }, method -> {
+				method.addJavadoc("Apply the persistence injection for '$L'.", injectedElementName);
+				method.addModifiers(javax.lang.model.element.Modifier.PRIVATE,
+						javax.lang.model.element.Modifier.STATIC);
+				method.addParameter(RegisteredBean.class, REGISTERED_BEAN_PARAMETER);
+				method.addParameter(this.target, INSTANCE_PARAMETER);
+				method.addCode(generateInjectedElementMethodCode(hints, generatedClass, injectedElement));
+			});
+			ArgumentCodeGenerator argumentCodeGenerator = ArgumentCodeGenerator
+					.of(RegisteredBean.class, REGISTERED_BEAN_PARAMETER).and(this.target, INSTANCE_PARAMETER);
+			return generatedMethod.toMethodReference().toInvokeCodeBlock(argumentCodeGenerator, generatedClass.getName());
+		}
+
+		private CodeBlock generateInjectedElementMethodCode(RuntimeHints hints, GeneratedClass generatedClass,
+				InjectedElement injectedElement) {
+
+			CodeBlock.Builder code = CodeBlock.builder();
+			InjectionCodeGenerator injectionCodeGenerator =
+					new InjectionCodeGenerator(generatedClass.getName(), hints);
+			CodeBlock resourceToInject = generateResourceToInjectCode(generatedClass.getMethods(),
+					(PersistenceElement) injectedElement);
+			code.add(injectionCodeGenerator.generateInjectionCode(
+					injectedElement.getMember(), INSTANCE_PARAMETER,
+					resourceToInject));
 			return code.build();
 		}
 
@@ -821,12 +842,13 @@ public class PersistenceAnnotationBeanPostProcessor implements InstantiationAwar
 						EntityManagerFactoryUtils.class, ListableBeanFactory.class,
 						REGISTERED_BEAN_PARAMETER, unitName);
 			}
-			String[] methodNameParts = {"get", unitName, "EntityManager"};
+			String[] methodNameParts = { "get", unitName, "EntityManager" };
 			GeneratedMethod generatedMethod = generatedMethods.add(methodNameParts, method ->
 					generateGetEntityManagerMethod(method, injectedElement));
 			return CodeBlock.of("$L($L)", generatedMethod.getName(), REGISTERED_BEAN_PARAMETER);
 		}
 
+		@SuppressWarnings("NullAway") // Dataflow analysis limitation
 		private void generateGetEntityManagerMethod(MethodSpec.Builder method, PersistenceElement injectedElement) {
 			String unitName = injectedElement.unitName;
 			Properties properties = injectedElement.properties;

@@ -25,6 +25,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.netty.ChannelOperationsId;
 import reactor.netty.Connection;
@@ -37,7 +38,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseCookie;
-import org.springframework.lang.Nullable;
+import org.springframework.http.support.Netty4HeadersAdapter;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -74,7 +75,7 @@ class ReactorClientHttpResponse implements ClientHttpResponse {
 	 */
 	public ReactorClientHttpResponse(HttpClientResponse response, Connection connection) {
 		this.response = response;
-		MultiValueMap<String, String> adapter = new NettyHeadersAdapter(response.responseHeaders());
+		MultiValueMap<String, String> adapter = new Netty4HeadersAdapter(response.responseHeaders());
 		this.headers = HttpHeaders.readOnlyHttpHeaders(adapter);
 		this.inbound = connection.inbound();
 		this.bufferFactory = new NettyDataBufferFactory(connection.outbound().alloc());
@@ -87,7 +88,7 @@ class ReactorClientHttpResponse implements ClientHttpResponse {
 	@Deprecated
 	public ReactorClientHttpResponse(HttpClientResponse response, NettyInbound inbound, ByteBufAllocator alloc) {
 		this.response = response;
-		MultiValueMap<String, String> adapter = new NettyHeadersAdapter(response.responseHeaders());
+		MultiValueMap<String, String> adapter = new Netty4HeadersAdapter(response.responseHeaders());
 		this.headers = HttpHeaders.readOnlyHttpHeaders(adapter);
 		this.inbound = inbound;
 		this.bufferFactory = new NettyDataBufferFactory(alloc);
@@ -151,8 +152,7 @@ class ReactorClientHttpResponse implements ClientHttpResponse {
 		return CollectionUtils.unmodifiableMultiValueMap(result);
 	}
 
-	@Nullable
-	private static String getSameSite(Cookie cookie) {
+	private static @Nullable String getSameSite(Cookie cookie) {
 		if (cookie instanceof DefaultCookie defaultCookie && defaultCookie.sameSite() != null) {
 			return defaultCookie.sameSite().name();
 		}

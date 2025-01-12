@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package org.springframework.test.context.aot;
 
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.aot.AotDetector;
-import org.springframework.lang.Nullable;
 
 /**
  * Holder for metadata specific to ahead-of-time (AOT) support in the <em>Spring
@@ -117,8 +118,7 @@ public interface AotTestAttributes {
 	 * @see #getBoolean(String)
 	 * @see #setAttribute(String, String)
 	 */
-	@Nullable
-	String getString(String name);
+	@Nullable String getString(String name);
 
 	/**
 	 * Retrieve the attribute value for the given name as a {@code boolean}.

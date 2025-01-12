@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.stream.Stream;
 
-import org.springframework.context.index.CandidateComponentsIndexLoader;
+import org.jspecify.annotations.Nullable;
+
 import org.springframework.core.io.Resource;
-import org.springframework.lang.Nullable;
 
 /**
  * A test {@link ClassLoader} that can be used in a testing context to control the
@@ -40,11 +40,10 @@ public class CandidateComponentsTestClassLoader extends ClassLoader {
 	 * if resources are present at the standard location.
 	 * @param classLoader the classloader to use for all other operations
 	 * @return a test {@link ClassLoader} that has no index
-	 * @see CandidateComponentsIndexLoader#COMPONENTS_RESOURCE_LOCATION
+	 * @see org.springframework.context.index.CandidateComponentsIndexLoader#COMPONENTS_RESOURCE_LOCATION
 	 */
 	public static ClassLoader disableIndex(ClassLoader classLoader) {
-		return new CandidateComponentsTestClassLoader(classLoader,
-				Collections.enumeration(Collections.emptyList()));
+		return new CandidateComponentsTestClassLoader(classLoader, Collections.emptyEnumeration());
 	}
 
 	/**
@@ -68,11 +67,9 @@ public class CandidateComponentsTestClassLoader extends ClassLoader {
 	}
 
 
-	@Nullable
-	private final Enumeration<URL> resourceUrls;
+	private final @Nullable Enumeration<URL> resourceUrls;
 
-	@Nullable
-	private final IOException cause;
+	private final @Nullable IOException cause;
 
 	public CandidateComponentsTestClassLoader(ClassLoader classLoader, Enumeration<URL> resourceUrls) {
 		super(classLoader);
@@ -87,8 +84,9 @@ public class CandidateComponentsTestClassLoader extends ClassLoader {
 	}
 
 	@Override
+	@SuppressWarnings({ "deprecation", "removal" })
 	public Enumeration<URL> getResources(String name) throws IOException {
-		if (CandidateComponentsIndexLoader.COMPONENTS_RESOURCE_LOCATION.equals(name)) {
+		if (org.springframework.context.index.CandidateComponentsIndexLoader.COMPONENTS_RESOURCE_LOCATION.equals(name)) {
 			if (this.resourceUrls != null) {
 				return this.resourceUrls;
 			}
