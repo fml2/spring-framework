@@ -21,7 +21,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Utility to work with generic type parameters.
@@ -35,6 +35,10 @@ import org.springframework.lang.Nullable;
  * @since 2.0.7
  */
 public abstract class TypeUtils {
+
+	private static final Type[] IMPLICIT_LOWER_BOUNDS = { null };
+
+	private static final Type[] IMPLICIT_UPPER_BOUNDS = { Object.class };
 
 	/**
 	 * Check if the right-hand side type may be assigned to the left-hand side
@@ -71,7 +75,7 @@ public abstract class TypeUtils {
 			else if (lhsClass.isArray() && rhsType instanceof GenericArrayType rhsGenericArrayType) {
 				Type rhsComponent = rhsGenericArrayType.getGenericComponentType();
 
-				return isAssignable(lhsClass.getComponentType(), rhsComponent);
+				return isAssignable(lhsClass.componentType(), rhsComponent);
 			}
 		}
 
@@ -93,7 +97,7 @@ public abstract class TypeUtils {
 			Type lhsComponent = lhsGenericArrayType.getGenericComponentType();
 
 			if (rhsType instanceof Class<?> rhsClass && rhsClass.isArray()) {
-				return isAssignable(lhsComponent, rhsClass.getComponentType());
+				return isAssignable(lhsComponent, rhsClass.componentType());
 			}
 			else if (rhsType instanceof GenericArrayType rhsGenericArrayType) {
 				Type rhsComponent = rhsGenericArrayType.getGenericComponentType();
@@ -196,20 +200,14 @@ public abstract class TypeUtils {
 		Type[] lowerBounds = wildcardType.getLowerBounds();
 
 		// supply the implicit lower bound if none are specified
-		if (lowerBounds.length == 0) {
-			lowerBounds = new Type[] { null };
-		}
-		return lowerBounds;
+		return (lowerBounds.length == 0 ? IMPLICIT_LOWER_BOUNDS : lowerBounds);
 	}
 
 	private static Type[] getUpperBounds(WildcardType wildcardType) {
 		Type[] upperBounds = wildcardType.getUpperBounds();
 
 		// supply the implicit upper bound if none are specified
-		if (upperBounds.length == 0) {
-			upperBounds = new Type[] { Object.class };
-		}
-		return upperBounds;
+		return (upperBounds.length == 0 ? IMPLICIT_UPPER_BOUNDS : upperBounds);
 	}
 
 	public static boolean isAssignableBound(@Nullable Type lhsType, @Nullable Type rhsType) {
